@@ -10,13 +10,23 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.room.Room
+import cl.desafiolatam.desafiodos.orm.Task
+import cl.desafiolatam.desafiodos.orm.TaskDatabase
 import cl.desafiolatam.desafiodos.task.OnItemClickListener
 import cl.desafiolatam.desafiodos.task.TaskListAdapter
 import cl.desafiolatam.desafiodos.task.TaskUIDataHolder
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.add_task.view.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity(), OnItemClickListener {
+
+    lateinit var taskDatabase: TaskDatabase
+
+
     override fun onItemClick(taskItem: TaskUIDataHolder) {
         val dialogView = layoutInflater.inflate(R.layout.add_task, null)
         val taskText = dialogView.task_input
@@ -25,10 +35,8 @@ class MainActivity : AppCompatActivity(), OnItemClickListener {
             .Builder(this)
             .setTitle("Editar una Tarea")
             .setView(dialogView)
-            .setNegativeButton("Cerrar") {
-                    dialog: DialogInterface, _: Int -> dialog.dismiss()}
-            .setPositiveButton("Editar") {
-                    _: DialogInterface, _: Int ->
+            .setNegativeButton("Cerrar") { dialog: DialogInterface, _: Int -> dialog.dismiss() }
+            .setPositiveButton("Editar") { _: DialogInterface, _: Int ->
                 //generar código para editar/actualizar la tarea
             }
         dialogBuilder.create().show()
@@ -36,7 +44,9 @@ class MainActivity : AppCompatActivity(), OnItemClickListener {
 
     private lateinit var list: RecyclerView
     private lateinit var adapter: TaskListAdapter
+
     // crear las variables para utilizar la base de datos
+    private lateinit var tarea: Task
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +55,9 @@ class MainActivity : AppCompatActivity(), OnItemClickListener {
         setSupportActionBar(toolbar)
         setUpViews()
         //inicializar lo necesario para usar la base de datos
+       // taskDatabase = Room.databaseBuilder(this, TaskDatabase::class.java, "task_database").build()
+        taskDatabase = TaskDatabase.getIntance(this)
+        createEntity("nueva tarea")
     }
 
     override fun onResume() {
@@ -60,7 +73,7 @@ class MainActivity : AppCompatActivity(), OnItemClickListener {
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         super.onCreateOptionsMenu(menu)
         menuInflater.inflate(R.menu.main_menu, menu)
-        return  true
+        return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -75,7 +88,7 @@ class MainActivity : AppCompatActivity(), OnItemClickListener {
     private fun setUpViews() {
         list = task_list
         list.layoutManager = LinearLayoutManager(this)
-        adapter = TaskListAdapter( mutableListOf(), this, this)
+        adapter = TaskListAdapter(mutableListOf(), this, this)
         list.adapter = adapter
     }
 
@@ -90,10 +103,8 @@ class MainActivity : AppCompatActivity(), OnItemClickListener {
             .Builder(this)
             .setTitle("Agrega una Tarea")
             .setView(dialogView)
-            .setNegativeButton("Cerrar") {
-                    dialog: DialogInterface, _: Int -> dialog.dismiss()}
-            .setPositiveButton("Agregar") {
-                    dialog: DialogInterface, _: Int ->
+            .setNegativeButton("Cerrar") { dialog: DialogInterface, _: Int -> dialog.dismiss() }
+            .setPositiveButton("Agregar") { dialog: DialogInterface, _: Int ->
                 if (taskText.text?.isNotEmpty()!!) {
                     //Completar para agregar una tarea a la base de datos
                 }
@@ -106,21 +117,26 @@ class MainActivity : AppCompatActivity(), OnItemClickListener {
             .Builder(this)
             .setTitle("Borrar Todo")
             .setMessage("¿Desea Borrar todas las tareas?")
-            .setNegativeButton("Cerrar") {
-                    dialog: DialogInterface, _: Int -> dialog.dismiss()}
+            .setNegativeButton("Cerrar") { dialog: DialogInterface, _: Int -> dialog.dismiss() }
             .setPositiveButton("Aceptar") { dialog: DialogInterface, _: Int ->
                 //Código para eliminar las tareas de la base de datos
             }
         dialog.show()
     }
-    private fun createEntity(text:String) {
+
+    private fun createEntity(text: String) {
         //completar este método para retornar un Entity
+        var tareaNueva = Task(text)
+        CoroutineScope(Dispatchers.Main).launch{taskDatabase.getTaskDAO().insertTask(tareaNueva)}
+
     }
 
     private fun createEntityListFromDatabase(/* párametro de entrada*/): MutableList<TaskUIDataHolder> {
-        val dataList = mutableListOf<TaskUIDataHolder>()
+        var dataList = mutableListOf<TaskUIDataHolder>()
         //completar método para crear una lista de datos compatibles con el adaptador, mire lo que
         //retorna el método. Este método debe recibir un parámetro también.
+            dataList = taskDatabase.getTaskDAO().getAll() as MutableList<TaskUIDataHolder>
+
         return dataList
     }
 }
